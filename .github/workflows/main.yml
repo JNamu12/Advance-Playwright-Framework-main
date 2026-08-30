@@ -27,13 +27,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests
+      - name: Clean previous test results
         run: |
-          mkdir -p results
-          npx playwright test
+          rm -rf results
+          rm -rf test-results
+
+      - name: Run Playwright tests
+        run: npx playwright test
         continue-on-error: true
-        env:
-          PLAYWRIGHT_JUNIT_OUTPUT_NAME: results/junit.xml
 
       - name: Send results to Flaky Test Detector
         if: always()
@@ -42,10 +43,9 @@ jobs:
         run: |
           TARGET_URL="${DETECTOR_URL_SECRET:-https://flaky-test-detector-kbpc.onrender.com}"
           
-          # Find junit.xml if in results or subfolder
           JUNIT_PATH="results/junit.xml"
           if [ ! -f "$JUNIT_PATH" ]; then
-            FOUND_FILE=$(find . -name "junit.xml" | head -n 1)
+            FOUND_FILE=$(find . -name "junit.xml" -type f | head -n 1)
             if [ -n "$FOUND_FILE" ]; then
               JUNIT_PATH="$FOUND_FILE"
             fi
