@@ -28,22 +28,22 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npx playwright test
-        continue-on-error: true
-
-      - name: Check JUnit file
-        if: always()
         run: |
-          pwd
-          ls -la
-          ls -la results || true
-          test -f results/junit.xml || { echo "JUnit file missing"; exit 1; }
+          mkdir -p results
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME=results/junit.xml npx playwright test --reporter=junit,list
+        continue-on-error: true
 
       - name: Send results to Flaky Test Detector
         if: always()
         run: |
-          curl -X POST "${{ secrets.DETECTOR_URL }}/api/v1/test-runs/ingest-junit" \
-            -H "X-API-Key: ${{ secrets.DETECTOR_API_KEY }}" \
-            -F "file=@results/junit.xml" \
-            -F "source_tool=playwright" \
-            -F "commit_sha=${{ github.sha }}"
+          if [ -f results/junit.xml ]; then
+            echo "Ingesting results/junit.xml to Flaky Test Detector..."
+            curl -v -X POST "${{ secrets.DETECTOR_URL }}/api/v1/test-runs/ingest-junit" \
+              -H "X-API-Key: ${{ secrets.DETECTOR_API_KEY }}" \
+              -F "file=@results/junit.xml" \
+              -F "source_tool=playwright" \
+              -F "commit_sha=${{ github.sha }}"
+          else
+            echo "Warning: results/junit.xml file not found. Skipping ingest."
+          fi
+
