@@ -31,6 +31,14 @@ jobs:
         run: npx playwright test
         continue-on-error: true
 
+      - name: Check JUnit file
+        if: always()
+        run: |
+          pwd
+          ls -la
+          ls -la results || true
+          test -f results/junit.xml || { echo "JUnit file missing"; exit 1; }
+
       - name: Send results to Flaky Test Detector
         if: always()
         run: |
