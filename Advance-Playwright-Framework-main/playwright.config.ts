@@ -17,6 +17,7 @@ export default defineConfig({
         ['html', { open: 'never' }],
         ['json', { outputFile: 'test-results/results.json' }],
         ['list'],
+        [['junit', { outputFile: 'results/junit.xml' }], ['list']]
     ],
 
     use: {

@@ -1,0 +1,47 @@
+```yaml
+name: Flaky Detector Demo Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-test-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Send results to Flaky Test Detector
+        if: always()
+        run: |
+          curl -X POST "${{ secrets.DETECTOR_URL }}/api/v1/test-runs/ingest-junit" \
+            -H "X-API-Key: ${{ secrets.DETECTOR_API_KEY }}" \
+            -F "file=@results/junit.xml" \
+            -F "source_tool=playwright" \
+            -F "commit_sha=${{ github.sha }}"
+```
+
+**What this file actually says, in plain English, line by line:**
+- "Run this automatically whenever someone pushes code, or when someone manually clicks a button"
+- "Get a fresh copy of the code"
+- "Install the tools needed to run tests"
+- "Run the tests ΓÇö and keep going even if some fail"
+- "Take the results file and send it to the detector, ALWAYS (even if tests failed)"

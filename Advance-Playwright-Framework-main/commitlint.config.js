@@ -12,7 +12,7 @@
  *   docs(readme): update architecture section
  *   chore(deps): update playwright to v1.40
  * 
- * @author Pramod Dutta
+ * @author Namrata jadhav
  * @website https://thetestingacademy.com
  */
 
