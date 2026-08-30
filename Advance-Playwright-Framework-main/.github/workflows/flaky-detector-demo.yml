@@ -1,4 +1,3 @@
-```yaml
 name: Flaky Detector Demo Pipeline
 
 on:
@@ -9,6 +8,9 @@ on:
 jobs:
   build-test-report:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./Advance-Playwright-Framework-main
 
     steps:
       - name: Checkout repository
@@ -18,8 +20,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
         run: npm ci
 
       - name: Install Playwright browsers
@@ -29,6 +34,14 @@ jobs:
         run: npx playwright test
         continue-on-error: true
 
+      - name: Check JUnit file
+        if: always()
+        run: |
+          pwd
+          ls -la
+          ls -la results || true
+          test -f results/junit.xml || { echo "JUnit file missing"; exit 1; }
+
       - name: Send results to Flaky Test Detector
         if: always()
         run: |
@@ -37,11 +50,3 @@ jobs:
             -F "file=@results/junit.xml" \
             -F "source_tool=playwright" \
             -F "commit_sha=${{ github.sha }}"
-```
-
-**What this file actually says, in plain English, line by line:**
-- "Run this automatically whenever someone pushes code, or when someone manually clicks a button"
-- "Get a fresh copy of the code"
-- "Install the tools needed to run tests"
-- "Run the tests ΓÇö and keep going even if some fail"
-- "Take the results file and send it to the detector, ALWAYS (even if tests failed)"
