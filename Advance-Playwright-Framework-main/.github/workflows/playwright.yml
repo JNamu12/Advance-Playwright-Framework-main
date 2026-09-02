@@ -43,13 +43,18 @@ jobs:
       - name: 🎭 Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
-      - name: 🧪 Run Playwright Tests (Shard ${{ matrix.shard }}/4)
+           - name: 🧪 Run Playwright Tests (Shard ${{ matrix.shard }}/4)
         run: |
+          mkdir -p results
           if [ -n "${{ github.event.inputs.test_tag }}" ]; then
-            npx playwright test --shard=${{ matrix.shard }}/4 --grep "${{ github.event.inputs.test_tag }}"
+            npx playwright test --shard=${{ matrix.shard }}/4 --grep "${{ github.event.inputs.test_tag }}" --reporter=junit
           else
-            npx playwright test --shard=${{ matrix.shard }}/4
+            npx playwright test --shard=${{ matrix.shard }}/4 --reporter=junit
           fi
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: results/junit.xml
+
 
       - name: 📊 Upload Test Results
         if: always()
@@ -104,6 +109,44 @@ jobs:
           name: playwright-report-merged
           path: playwright-report/
           retention-days: 30
+
+            - name: 🐍 Set up Python
+        if: always()
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 🚀 Send results to Flaky Test Detector
+        if: always()
+        env:
+          API_KEY: ${{ secrets.DETECTOR_API_KEY }}
+        run: |
+          DETECTOR_URL="https://flaky-test-detector-kbpc.onrender.com"
+
+          # Download the latest ingestion script from the detector repo
+          curl -s -o junit_ingest.py https://raw.githubusercontent.com/JNamu12/Flaky-Test-Detector/main/tools/junit_xml_to_ingest.py
+
+          # Ping Render to ensure backend is awake
+          echo "Pinging Render backend..."
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${DETECTOR_URL}/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Render is awake!"
+              break
+            fi
+            echo "Waiting 15s before retry..."
+            sleep 15
+          done
+
+          # Send JUnit XML
+          if [ -f results/junit.xml ]; then
+            python junit_ingest.py results/junit.xml \
+              --url "${DETECTOR_URL}/api/v1/test-runs/ingest" \
+              --commit-sha "${{ github.sha }}" \
+              --api-key "${API_KEY}"
+          else
+            echo "Warning: results/junit.xml not found."
+          fi
 
       - name: 📊 Publish Report Summary
         if: always()
